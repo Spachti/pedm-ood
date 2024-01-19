@@ -14,6 +14,9 @@ from torch import nn as nn
 from torch.nn import functional as F
 from utils.callbacks import BaseCallback
 from utils.gpu_utils import get_device
+# from torch.func import stack_module_state, functional_call
+# from torch import vmap
+import copy
 
 
 def truncated_normal(size, std, mean=0.0):
@@ -51,8 +54,50 @@ class LinLayer(nn.Module):
     def forward(self, x):
         x = x.matmul(self.lin_w) + self.lin_b
         x = self.activation(x)
-        return x
+        return x    
 
+### My first attempts at adding recurrency to the PEDM ### 
+
+# class RNN(nn.Module):
+#     def __init__(self, embed_size, history_steps):
+#         super().__init__()
+#         self.rnn = nn.GRU(
+#             input_size=embed_size,
+#             hidden_size=embed_size,
+#             num_layers=history_steps,
+#             batch_first=True
+#         )
+# 
+#     def forward(self, x):
+#         x = self.rnn(x)
+#         return x
+#     
+# class ENCODER(nn.Module):
+#     def __init__(self, feat_size, hidden_size, embed_size):
+#         super().__init__()
+#         self.fc1 = nn.Linear(feat_size, hidden_size)
+#         self.activation = nn.SiLU()
+#         self.fc2 = nn.Linear(hidden_size, embed_size)
+# 
+#     def forward(self, x):
+#         x = self.fc1(x)
+#         x = self.activation(x)
+#         x = self.fc2(x)
+#         return x
+#     
+# class DECODER(nn.Module):
+#     def __init__(self, embed_size, hidden_size, out_size):
+#         super().__init__()
+#         self.fc1 = nn.Linear(embed_size, hidden_size)
+#         self.activation = nn.ReLU()
+#         self.fc2 = nn.Linear(hidden_size, out_size)
+# 
+#     def forward(self, x):
+#         x = self.fc1(x)
+#         x = self.activation(x)
+#         x = self.fc2(x)
+#         return x
+    
 
 class ProbEnsemble(nn.Module):
     """Probabilistic Ensemble"""
@@ -67,6 +112,17 @@ class ProbEnsemble(nn.Module):
         self.out_features = layer_sizes[-1] * 2  # out_features * 2 because we output both the mean and the variance
         self.decays = decays
         self.activation_fn = activation_fn
+
+        ###
+        # self.device = get_device(device)
+        # self.obs_features = layer_sizes[-1]
+        # self.hidden_size = 100
+        # self.embed_size = 200
+        # self.history_steps = 4
+        # self.encoder = ENCODER(self.obs_features, self.hidden_size, self.embed_size)
+        # self.rnn = RNN(self.embed_size, self.history_steps)
+        # self.decoder = DECODER(self.embed_size, self.hidden_size, self.obs_features)
+        ###
 
         self.fc_layers = nn.Sequential(
             *[
@@ -103,9 +159,64 @@ class ProbEnsemble(nn.Module):
         self.inputs_mu.data = mu.to(self.device).float()
         self.inputs_sigma.data = sigma.to(self.device).float()
 
+    ###
+    # def states_to_seqs(self, states, steps):
+    #     seqs = [F.pad(states[:, :-i, :], (0, 0, i, 0)) for i in range(1, steps)]
+    #     seqs.insert(0, states)
+    #     seqs = list(reversed(seqs))
+    #     return torch.cat(seqs, dim=-1)
+    # ###
+
     def forward(self, inputs, ret_logvar=False):
+        ###
+        # if train:
+        #     _, batch_size, _ = inputs.shape
+        #     mask = torch.rand(1, batch_size, 1)
+        #     mask = torch.round(mask)
+        #     domain_rand = torch.randn(self.ens_size, batch_size, self.obs_features)
+        #     domain_rand = domain_rand * mask * 0.1
+        # 
+        #     observations = inputs[:, :, :self.obs_features].clone() + domain_rand.to(self.device)
+        #     seq_obs = self.obersvations_to_seqs(observations, self.history_steps)
+        #     states, _ = self.rnn(seq_obs)
+        #     # states, _ = map(list, 
+        #     #                  zip(*[rnn(seq) for rnn, seq in zip(
+        #     #                      self.rnns, seq_obs[:self.ens_size]
+        #     #                      )])
+        #     #             )
+        #     inputs[:, :, :self.obs_features] = states
+        #
+        #     states = states[:, :self.obs_features]
+        #     n_states, _ = states.shape
+        #     mask = torch.rand(n_states, 1)
+        #     mask = torch.round(mask).to(self.device)
+        #     domain_rand = torch.randn_like(states)
+        #     domain_rand = domain_rand * mask * 0.1
+        #     states = states + domain_rand
+        #     enc_states = self.encoder(states)
+        #     enc_states = enc_states.view(-1, 150, self.embed_size)
+        #     enc_states_seqs = self.states_to_seqs(enc_states, self.history_steps)
+        #     enc_states_seqs = enc_states_seqs.view(-1, self.history_steps, self.embed_size)
+        #     _, embed_history = self.rnn(enc_states_seqs)
+        #     embed_history = embed_history[-1].squeeze()
+        #     state_history = self.decoder(embed_history)
+        #     inputs[:, :, :self.obs_features] = state_history[idxs, :]
+# 
+        # else:
+        #     enc_states = self.encoder(states)
+        #     enc_states_seqs = self.states_to_seqs(enc_states.unsqueeze(0), self.history_steps)
+        #     enc_states_seqs = enc_states_seqs.view(-1, self.history_steps, self.embed_size)
+        #     _, embed_history = self.rnn(enc_states_seqs)
+        #     embed_history = embed_history[-1].squeeze()
+        #     state_history = self.decoder(embed_history)
+        #     state_history = state_history.repeat_interleave(repeats=n_part, dim=0)
+        #     state_history = self._expand(state_history, n_part)
+        #     inputs[:, :, :self.obs_features] = state_history
+        ###
+            
         if self.normalize_data:
             inputs = (inputs - self.inputs_mu) / self.inputs_sigma  # normalize inputs first
+        
         inputs = self.fc_layers(inputs)  # forward pass through layers
         mean = inputs[:, :, : (self.out_features // 2)]  # 1st half of out-features is mean
         logvar = inputs[:, :, (self.out_features // 2) :]  # 2nd half of out-features is var
@@ -159,7 +270,6 @@ class ProbEnsemble(nn.Module):
 
         for batch_num in range(num_batch):
             batch_idxs = idxs[:, batch_num * batch_size : (batch_num + 1) * batch_size]
-
             loss = 0.01 * (self.max_logvar.sum() - self.min_logvar.sum())
 
             if self.decays is not None:
@@ -168,7 +278,7 @@ class ProbEnsemble(nn.Module):
             input_mb = X_train[batch_idxs, :]
             target_mb = y_train[batch_idxs, :]
 
-            mean, logvar = self.forward(input_mb, ret_logvar=True)
+            mean, logvar = self.forward(input_mb, X_train, idxs=batch_idxs, ret_logvar=True)
             inv_var = torch.exp(-logvar)
 
             train_losses = ((mean - target_mb) ** 2) * inv_var + logvar
@@ -177,12 +287,11 @@ class ProbEnsemble(nn.Module):
             )  # reduce mean over last and second to last dim -> first dimension (ens_size) stays
 
             loss += train_losses
-
+            acc_loss.append(loss.item())
             self.optim.zero_grad()
             loss.backward()
             self.optim.step()
 
-            acc_loss.append(loss.item())
         return np.mean(acc_loss)
 
     def val_epoch(self, X_val, y_val, return_se=False):
@@ -191,7 +300,7 @@ class ProbEnsemble(nn.Module):
             idxs = np.random.randint(len(X_val), size=[self.ens_size, len(X_val)])
             val_in = X_val[idxs, :]
             val_targ = y_val[idxs, :]
-            mean, _ = self.forward(val_in)
+            mean, _ = self.forward(val_in, X_val, idxs=idxs)
             se_loss = (mean - val_targ) ** 2
             mse_loss = se_loss.mean(-1).mean(-1)
         if not return_se:
