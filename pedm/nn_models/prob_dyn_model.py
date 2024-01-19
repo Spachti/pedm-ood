@@ -12,12 +12,17 @@ from typing import Callable, Tuple
 import numpy as np
 import torch
 from pedm.nn_models.prob_ensemble import ProbEnsemble
+from pedm.nn_models.mdrnn_ensemble import MDRNNEnsemble
 
 
-class PEDM(ProbEnsemble):
+class PEDM(MDRNNEnsemble):
     """Probabilistic Ensemble Dynamics Model with state_action inputs"""
 
-    def __init__(self, obs_preproc=None, obs_postproc=None, targ_proc=None, *args, **kwargs):
+    ### 
+    # In this class I just updated the init and the predict_next_state function
+    ###
+
+    def __init__(self, obs_preproc=None, obs_postproc=None, targ_proc=None): # , *args, **kwargs):
         """
         Args:
             obs_preproc: function to preprocess observations (not required)
@@ -25,13 +30,13 @@ class PEDM(ProbEnsemble):
             targ_proc: function to process targets (e.g. substract model output from next state)
         """
 
-        super().__init__(*args, **kwargs)
+        super().__init__() # (*args, **kwargs)
         self.obs_preproc = obs_preproc or (lambda obs: obs)
         self.obs_postproc = obs_postproc or (lambda obs, pred: obs + pred)
         self.targ_proc = targ_proc or (lambda obs, n_obs: n_obs - obs)
-        self._constructor_kwargs.update(
-            {"obs_preproc": obs_preproc, "obs_postproc": obs_postproc, "targ_proc": targ_proc}
-        )
+        # self._constructor_kwargs.update(
+        #     {"obs_preproc": obs_preproc, "obs_postproc": obs_postproc, "targ_proc": targ_proc}
+        # )
 
     def fit(self, train_ep_data, val_ep_data, *args, **kwargs) -> Tuple:
         """
@@ -51,6 +56,14 @@ class PEDM(ProbEnsemble):
 
         X_train, y_train = self.preproc_ep_data(train_ep_data)
         X_val, y_val = self.preproc_ep_data(val_ep_data)
+        # rs_train = np.array([ep.rewards for ep in train_ep_data])
+        # rs_train = np.concatenate(rs_train, axis=0)
+        # rs_val = np.array([ep.rewards for ep in val_ep_data])
+        # rs_val = np.concatenate(rs_val, axis=0)
+        # ds_train = np.array([ep.dones for ep in train_ep_data])
+        # ds_train = np.concatenate(ds_train, axis=0)
+        # ds_val = np.array([ep.rewards for ep in val_ep_data])
+        # ds_val = np.concatenate(ds_val, axis=0)
 
         return super().fit(X_train, y_train, X_val, y_val, *args, **kwargs)
 
@@ -71,19 +84,20 @@ class PEDM(ProbEnsemble):
         # action: (n_candidates x action dim)
         # distribute the particles over the nets
         _state = self._expand(
-            self.obs_preproc(state), n_part
+            self.obs_preproc(state)
         )  # (nopt * n_part,state_dim) -> (n_nets, n_candidates*n_part//n_nets, state_dim)
         _acs = self._expand(
-            action, n_part
+            action
         )  # (n_candidates x action dim) -> (n_nets, n_candidates*n_part//n_nets, action_dim)
-        inputs = torch.cat((_state, _acs), dim=-1)  # (n_nets, n_candidates*n_part//n_nets, state_dim+action_dim)
-
-        mean, var = self.forward(inputs)
-        predictions = mean + torch.randn_like(mean, device=self.device) * var.sqrt()
+        # inputs = torch.cat((_state, _acs), dim=-1)  # (n_nets, n_candidates*n_part//n_nets, state_dim+action_dim)
+        output = self.forward(_state, _acs)
+        predictions = [self.sample(*out).to(self.device) for out in output]
+        predictions = torch.stack(predictions)
+        # predictions = mean + torch.randn_like(mean, device=self.device) * var.sqrt()
 
         # reshape the distributed particles to state-shape
         predictions = self._flatten(
-            predictions, n_part
+            predictions
         )  # (n_nets, n_candidates*n_part//n_nets, state_dim) -> (nopt * n_part, state_dim)
 
         # self._unflatten(predictions, n_part)
