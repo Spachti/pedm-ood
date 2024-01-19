@@ -34,7 +34,7 @@ class PEDM_Detector(Base_Detector):
         self,
         env,
         dyn_model_kwargs={},
-        n_part: Optional[int] = 1_000,
+        n_part: Optional[int] = 200,
         horizon: Optional[int] = 1,
         criterion: Optional[str] = "pred_error_samples",
         aggregation_function: Optional[str] = "min_mean",
@@ -53,13 +53,13 @@ class PEDM_Detector(Base_Detector):
         if not dyn_model_kwargs:
             dyn_model_kwargs = model_cfg_dict[env.spec.id]["dyn_model_kwargs"]
 
-        self.dyn_model = PEDM(**dyn_model_kwargs)
+        self.dyn_model = PEDM() # (**dyn_model_kwargs)
         self.n_part = n_part
         self.criterion = criterion
         self.aggregation_function = aggregation_function
         if horizon != 1:
             raise NotImplementedError
-        super().__init__(*args, **kwargs)
+        super().__init__() # (*args, **kwargs)
 
     def _predict_scores(self, obs, acts) -> np.ndarray:
         """given a list of transitions (sequential observations and actions) predict the anomaly score
@@ -161,7 +161,12 @@ class PEDM_Detector(Base_Detector):
             dyn_model_kwargs: optional kwargs to pass to the dyn_model constructor
             batch_size: for training the dyn_model
         """
-        train_callback = TrainCallback(scheduler=None, patience=1e6, stop_loss=0.0)
+        train_callback = TrainCallback(scheduler='ReduceLROnPlateau', patience=1e3, stop_loss=0.0)
         self.dyn_model.fit(
-            train_ep_data, val_ep_data, n_train_epochs=n_train_epochs, callback=train_callback, *args, **kwargs
+            train_ep_data, 
+            val_ep_data,
+            n_train_epochs=n_train_epochs, 
+            callback=train_callback, 
+            *args, 
+            **kwargs
         )
