@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.6.0-base-ubuntu20.04
+FROM nvidia/cuda:11.6.2-base-ubuntu20.04
 ARG DEBIAN_FRONTEND=noninteractive
 
 
@@ -22,6 +22,7 @@ RUN apt install -y \
 
 # MuJoCo + OpenAI gym
 RUN pip install --upgrade "pip < 21.0"
+RUN pip install "cython<3"
 RUN pip install gym==0.21.0
 RUN mkdir -p /.mujoco && cd /.mujoco && wget https://github.com/deepmind/mujoco/releases/download/2.1.0/mujoco210-linux-x86_64.tar.gz && tar -xf mujoco210-linux-x86_64.tar.gz
 ENV MUJOCO_PY_MUJOCO_PATH="/.mujoco/mujoco210"
