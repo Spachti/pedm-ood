@@ -58,7 +58,10 @@ def policy_rollout(env, policy, max_steps=2e3):
         policy.reset()
     done = False
     while not done:
-        action, _ = policy.predict(state, deterministic=True)
+        if policy == None:
+            action = env.action_space.sample()
+        else: 
+            action, _ = policy.predict(state, deterministic=True)
         n_state, reward, done, _info = env.step(action)
         states.append(n_state)
         actions.append(action)
@@ -68,7 +71,6 @@ def policy_rollout(env, policy, max_steps=2e3):
             print("aborting long episode")
             done = True
         dones.append(done)
-
     return np.array(states), np.array(actions).reshape(len(actions), -1), np.array(rewards), np.array(dones)
 
 
