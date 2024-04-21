@@ -17,9 +17,12 @@ import gym
 import numpy as np
 from stable_baselines3.common.base_class import BaseAlgorithm
 
+from utils.wrappers import MujocoReacherImageWrapper
+
 from ood_baselines import *  # noqa
 from ood_baselines.common.base_detector import Base_Detector
 from pedm.pedm_detector import PEDM_Detector
+from dreamer.detector.dreamer_detector import Dreamer_Detector
 from utils.data import (
     load_object,
     n_policy_rollouts,
@@ -101,7 +104,7 @@ def train_detector(
 def test_detector(
     env_id: str,
     policy: BaseAlgorithm,
-    ood_detector: Union[Base_Detector, PEDM_Detector],
+    ood_detector: Union[Base_Detector, PEDM_Detector, Dreamer_Detector],
     test_episodes: int,
     anomaly_delay: Union[str, int],
     mods: Optional[List[str]] = [None],
@@ -180,6 +183,7 @@ def run(cfg):
     pprint.pprint(cfg.__dict__)
 
     env = make_env(cfg.env_id)
+    env = MujocoReacherImageWrapper(env)
 
     policy = load_policy(policy_name=cfg.policy_name, env=env, device=get_device(cfg.device), path=cfg.policy_path)
 

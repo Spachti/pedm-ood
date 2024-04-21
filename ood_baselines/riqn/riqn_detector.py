@@ -13,7 +13,7 @@ from locale import normalize
 import numpy as np
 import torch
 from ood_baselines.common.base_detector import Base_Detector
-from .riqn.riqn_predictor import RIQN_Predictor
+# from .riqn.riqn_predictor import RIQN_Predictor
 
 
 class RIQN_Detector(Base_Detector):
