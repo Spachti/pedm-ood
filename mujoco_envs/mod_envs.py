@@ -13,7 +13,7 @@ from .anom_mj_env import AnomMJEnv
 from .base_envs.cartpole import CartpoleEnv
 from .base_envs.half_cheetah import HalfCheetahEnv
 from .base_envs.pusher import PusherEnv
-from .base_envs.reacher import Reacher3DEnv
+from .base_envs.reacher import ReacherEnv
 
 
 class AnomCartpoleEnv(AnomMJEnv, CartpoleEnv):
@@ -121,11 +121,11 @@ class ModPusherEnv(AnomMJEnv, PusherEnv):
         super().__init__(injection_time=anomaly_delay, **kwargs)
 
 
-class AnomReacher3DEnv(AnomMJEnv, Reacher3DEnv):
+class AnomReacherEnv(AnomMJEnv, ReacherEnv):
     pass
 
 
-class ModReacher3DEnv(AnomMJEnv, Reacher3DEnv):
+class ModReacherEnv(AnomMJEnv, ReacherEnv):
     def __init__(self, mod, anomaly_delay):
         self.ep_length = 150
         kwargs = {}
@@ -146,9 +146,9 @@ class ModReacher3DEnv(AnomMJEnv, Reacher3DEnv):
         elif mod == 8 or mod == "act_noise_severe":
             kwargs["act_noise"] = 1
         elif mod == 9 or mod == "force_vector_minor":
-            kwargs["force_vec_dict"] = {"r_forearm_link": [0, 0, -0.5, 0, 0, 0]}
+            kwargs["force_vec_dict"] = {"body1": [0, 0, -0.5, 0, 0, 0]}
         elif mod == 10 or mod == "force_vector_severe":
-            kwargs["force_vec_dict"] = {"r_forearm_link": [0, 0, -5, 0, 0, 0]}
+            kwargs["force_vec_dict"] = {"body1": [0, 0, -5, 0, 0, 0]}
         else:
             raise ValueError("mod not speciified")
         if anomaly_delay == "random":

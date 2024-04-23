@@ -7,8 +7,8 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-import gym
-from gym.wrappers import TimeLimit
+import gymnasium as gym
+from gymnasium.wrappers import TimeLimit
 
 from utils.wrappers import TimeFeatureWrapper
 
@@ -60,7 +60,7 @@ def make_env(env_id, anomaly_delay=None, mod=None, seed=None):
             env = gym.make(env_id, power=anomalous_powers_dict[env_id], case=mod, anomaly_injection=anomaly_delay)
         env = TimeFeatureWrapper(env)
 
-    elif env_id in {"MJCartpole-v0", "MJHalfCheetah-v0", "MJPusher-v0", "MJReacher-v0"}:
+    elif env_id in {"MJCartpole-v0", "MJHalfCheetah-v0", "Pusher-v4", "Reacher-v4"}:
         import mujoco_envs  # noqa: F401
 
         if mod is None:
@@ -71,5 +71,5 @@ def make_env(env_id, anomaly_delay=None, mod=None, seed=None):
     else:
         raise ValueError(f"{env_id} not configured")
     if seed:
-        env.seed(seed)
+        _, _ = env.reset(seed=seed)
     return env

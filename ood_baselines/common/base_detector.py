@@ -107,7 +107,7 @@ class Base_Detector(ABC):
         Returns:
             obs: [seq_len, state_dims] list of sequential observations
         """
-        return (obs - self.obs_mu) / self.obs_sigma
+        return (obs - self.obs_mu) / (self.obs_sigma + 1e-8)
 
     def _normalize_acts(self, acts: np.ndarray) -> np.ndarray:
         """
@@ -119,7 +119,7 @@ class Base_Detector(ABC):
         Returns:
             acts: [seq_len, state_dims] list of sequential actions
         """
-        return (acts - self.acts_mu) / self.acts_sigma
+        return (acts - self.acts_mu) / (self.acts_sigma + 1e-8)
 
     def save(self, file_path: str) -> None:
         """save the model to the given path"""

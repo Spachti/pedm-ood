@@ -39,12 +39,12 @@ class AnomMJEnv:
     def dist_parameters(self):
         self.model.body_mass[:] = self.nominal_bm[:] * self.bm_factor
         for body_name, f_vec in self.force_vec_dict.items():
-            body_id = self.sim.model.body_name2id(body_name)
-            self.sim.data.xfrc_applied[body_id][:] = f_vec[:]
+            body_id = self.model.body(body_name).id
+            self.data.xfrc_applied[body_id][:] = f_vec[:]
 
     def reset_parameters(self):
         self.model.body_mass[:] = self.nominal_bm[:]
-        self.force_applied = np.zeros_like(self.sim.data.xfrc_applied)
+        self.force_applied = np.zeros_like(self.data.xfrc_applied)
 
     def step(self, act):
 
@@ -63,7 +63,7 @@ class AnomMJEnv:
             if self.act_noise is not None:
                 act = np.random.normal(act, self.act_noise)
 
-            obs, reward, done, info = super().step(act)
+            obs, reward, terminated, truncated, info = super().step(act)
 
             if self.obs_offset is not None:
                 obs = obs + self.obs_offset
@@ -73,9 +73,9 @@ class AnomMJEnv:
                 obs = np.random.normal(obs, self.obs_noise)
 
             self.step_counter += 1
-            return obs, reward, done, info
+            return obs, reward, terminated, truncated, info
 
-    def reset(self):
+    def reset(self, seed=None):
         self.reset_parameters()
         self.step_counter = 0
-        return super().reset()
+        return super().reset(seed=None)
