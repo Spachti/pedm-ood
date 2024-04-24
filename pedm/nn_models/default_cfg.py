@@ -118,20 +118,20 @@ model_cfg_dict = {
             "targ_proc": default_targ_proc,
         }
     },
-    "MJReacher-v0": {
+    "Reacher-v4": {
         "dyn_model_kwargs": {
             "ens_size": 5,
-            "layer_sizes": [24, 200, 200, 200, 17],
+            "layer_sizes": [13, 200, 200, 200, 11],
             "decays": [0.00025, 0.0005, 0.0005, 0.00075],
             "obs_preproc": default_obs_preproc,
             "obs_postproc": default_obs_postproc,
             "targ_proc": default_targ_proc,
         }
     },
-    "MJPusher-v0": {
+    "Pusher-v4": {
         "dyn_model_kwargs": {
             "ens_size": 5,
-            "layer_sizes": [27, 200, 200, 200, 20],
+            "layer_sizes": [30, 200, 200, 200, 23],
             "decays": [0.00025, 0.0005, 0.0005, 0.00075],
             "obs_preproc": default_obs_preproc,
             "obs_postproc": default_obs_postproc,

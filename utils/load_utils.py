@@ -30,9 +30,10 @@ def load_policy(policy_name, env, device, path=None):
 
         if env.spec.id in {"AntBulletEnv-v0", "HalfCheetahBulletEnv-v0", "HopperBulletEnv-v0", "Walker2DBulletEnv-v0"}:
             path = path or os.path.join(RIQN_REPO_PATH, "models", env.spec.id, "best_model.zip")
-        elif env.spec.id in {"MJCartpole-v0", "MJHalfCheetah-v0", "MJReacher-v0", "MJPusher-v0"}:
-            path = path or os.path.join("data", "checkpoints", env.spec.id, "TD3", "best_model.zip")
+        elif env.spec.id in {"MJCartpole-v0", "MJHalfCheetah-v0", "Reacher-v4", "Pusher-v4"}:
+            path = path or os.path.join("data", "checkpoints", env.spec.id, "TD3", "default", "best_model.zip")
         policy = TD3.load(path, env=env, device=device)
+        print(policy)
 
     elif policy_name == "PETS":
         from pets.pets import PETS

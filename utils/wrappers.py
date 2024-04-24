@@ -8,10 +8,10 @@
 
 
 import numpy as np
-import gym
-from gym import ObservationWrapper
-from gym.wrappers import TimeLimit
-from gym.spaces import Box
+import gymnasium as gym
+from gymnasium import ObservationWrapper
+from gymnasium.wrappers import TimeLimit
+from gymnasium.spaces import Box
 from collections import deque
 import imageio
 

@@ -11,7 +11,7 @@ import argparse
 import os
 import sys
 
-import gym
+import gymnasium as gym
 from stable_baselines3 import DQN, TD3
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
@@ -27,8 +27,8 @@ def parse_config():
         choices=[
             "MJCartpole-v0",
             "MJHalfCheetah-v0",
-            "MJPusher-v0",
-            "MJReacher-v0",
+            "Pusher-v4",
+            "Reacher-v4",
         ],
         type=str,
     )

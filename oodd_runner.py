@@ -13,7 +13,7 @@ import pprint
 from datetime import datetime
 from typing import List, Optional, Union
 
-import gym
+import gymnasium as gym
 import numpy as np
 from stable_baselines3.common.base_class import BaseAlgorithm
 
@@ -229,8 +229,8 @@ def parse_cfg(*args):
         choices=[
             "MJCartpole-v0",
             "MJHalfCheetah-v0",
-            "MJReacher-v0",
-            "MJPusher-v0",
+            "Reacher-v4",
+            "Pusher-v4",
         ],
         type=str,
         help="which env to run on",

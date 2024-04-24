@@ -30,8 +30,8 @@ def episodes_mu_sigma(episodes):
 def normalize_episodes(episodes, obs_mu, obs_sigma, acts_mu, acts_sigma):
     normalized_episodes = []
     for ep in episodes:
-        norm_states = (ep.states - obs_mu) / obs_sigma
-        norm_actions = (ep.actions - acts_mu) / acts_sigma
+        norm_states = (ep.states - obs_mu) / (obs_sigma + 1e-8)
+        norm_actions = (ep.actions - acts_mu) / (acts_sigma + 1e-8)
         normalized_episodes.append(rollout(norm_states, norm_actions, ep.rewards, ep.dones))
     return normalized_episodes
 
@@ -52,14 +52,15 @@ def policy_rollout(env, policy, max_steps=2e3):
         [],
         [],
     )
-    state = env.reset()
+    state, _ = env.reset()
     states.append(state)
     if hasattr(policy, "reset"):
         policy.reset()
     done = False
     while not done:
         action, _ = policy.predict(state, deterministic=True)
-        n_state, reward, done, _info = env.step(action)
+        n_state, reward, terminated, truncated, _info = env.step(action)
+        done = terminated or truncated
         states.append(n_state)
         actions.append(action)
         rewards.append(reward)

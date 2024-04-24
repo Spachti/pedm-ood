@@ -1,83 +1,80 @@
-import os
-
 import numpy as np
-from gym import utils
-from gym.envs.mujoco import mujoco_env
+
+from gymnasium import utils
+from gymnasium.envs.mujoco import MujocoEnv
+from gymnasium.spaces import Box
 
 
-class Reacher3DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self):
-        self.viewer = None
-        utils.EzPickle.__init__(self)
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.goal = np.zeros(3)
-        mujoco_env.MujocoEnv.__init__(self, os.path.join(dir_path, "assets/reacher3d.xml"), 2)
+DEFAULT_CAMERA_CONFIG = {"trackbodyid": 0}
+
+
+class ReacherEnv(MujocoEnv, utils.EzPickle):
+    metadata = {
+        "render_modes": [
+            "human",
+            "rgb_array",
+            "depth_array",
+        ],
+        "render_fps": 50,
+    }
+
+    def __init__(self, **kwargs):
+        utils.EzPickle.__init__(self, **kwargs)
+        observation_space = Box(low=-np.inf, high=np.inf, shape=(11,), dtype=np.float64)
+        MujocoEnv.__init__(
+            self,
+            "reacher.xml",
+            2,
+            observation_space=observation_space,
+            default_camera_config=DEFAULT_CAMERA_CONFIG,
+            **kwargs,
+        )
 
     def step(self, a):
-        self.do_simulation(a, self.frame_skip)
-        ob = self._get_obs()
-        reward = -np.sum(np.square(self.get_EE_pos(ob[None]) - self.goal))
-        reward -= 0.01 * np.square(a).sum()
-        done = False
-        return ob, reward, done, dict(reward_dist=0, reward_ctrl=0)
+        vec = self.get_body_com("fingertip") - self.get_body_com("target")
+        reward_dist = -np.linalg.norm(vec)
+        reward_ctrl = -np.square(a).sum()
+        reward = reward_dist + reward_ctrl
 
-    def viewer_setup(self):
-        self.viewer.cam.trackbodyid = 1
-        self.viewer.cam.distance = 2.5
-        self.viewer.cam.elevation = -30
-        self.viewer.cam.azimuth = 270
+        self.do_simulation(a, self.frame_skip)
+        if self.render_mode == "human":
+            self.render()
+
+        ob = self._get_obs()
+        # truncation=False as the time limit is handled by the `TimeLimit` wrapper added during `make`
+        return (
+            ob,
+            reward,
+            False,
+            False,
+            dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl),
+        )
 
     def reset_model(self):
-        qpos, qvel = np.copy(self.init_qpos), np.copy(self.init_qvel)
-        qpos[-3:] += self.np_random.normal(loc=0, scale=0.1, size=[3])
-        qvel[-3:] = 0
-        self.goal = qpos[-3:]
+        qpos = (
+            self.np_random.uniform(low=-0.1, high=0.1, size=self.model.nq)
+            + self.init_qpos
+        )
+        while True:
+            self.goal = self.np_random.uniform(low=-0.2, high=0.2, size=2)
+            if np.linalg.norm(self.goal) < 0.2:
+                break
+        qpos[-2:] = self.goal
+        qvel = self.init_qvel + self.np_random.uniform(
+            low=-0.005, high=0.005, size=self.model.nv
+        )
+        qvel[-2:] = 0
         self.set_state(qpos, qvel)
         return self._get_obs()
 
     def _get_obs(self):
+        theta = self.data.qpos.flat[:2]
         return np.concatenate(
             [
-                self.sim.data.qpos.flat,
-                self.sim.data.qvel.flat[:-3],
+                np.cos(theta),
+                np.sin(theta),
+                self.data.qpos.flat[2:],
+                self.data.qvel.flat[:2],
+                self.get_body_com("fingertip") - self.get_body_com("target"),
             ]
         )
-
-    def get_EE_pos(self, states):
-        theta1, theta2, theta3, theta4, theta5, theta6, theta7 = (
-            states[:, :1],
-            states[:, 1:2],
-            states[:, 2:3],
-            states[:, 3:4],
-            states[:, 4:5],
-            states[:, 5:6],
-            states[:, 6:],
-        )
-
-        rot_axis = np.concatenate(
-            [np.cos(theta2) * np.cos(theta1), np.cos(theta2) * np.sin(theta1), -np.sin(theta2)], axis=1
-        )
-        rot_perp_axis = np.concatenate([-np.sin(theta1), np.cos(theta1), np.zeros(theta1.shape)], axis=1)
-        cur_end = np.concatenate(
-            [
-                0.1 * np.cos(theta1) + 0.4 * np.cos(theta1) * np.cos(theta2),
-                0.1 * np.sin(theta1) + 0.4 * np.sin(theta1) * np.cos(theta2) - 0.188,
-                -0.4 * np.sin(theta2),
-            ],
-            axis=1,
-        )
-
-        for length, hinge, roll in [(0.321, theta4, theta3), (0.16828, theta6, theta5)]:
-            perp_all_axis = np.cross(rot_axis, rot_perp_axis)
-            x = np.cos(hinge) * rot_axis
-            y = np.sin(hinge) * np.sin(roll) * rot_perp_axis
-            z = -np.sin(hinge) * np.cos(roll) * perp_all_axis
-            new_rot_axis = x + y + z
-            new_rot_perp_axis = np.cross(new_rot_axis, rot_axis)
-            new_rot_perp_axis[np.linalg.norm(new_rot_perp_axis, axis=1) < 1e-30] = rot_perp_axis[
-                np.linalg.norm(new_rot_perp_axis, axis=1) < 1e-30
-            ]
-            new_rot_perp_axis /= np.linalg.norm(new_rot_perp_axis, axis=1, keepdims=True)
-            rot_axis, rot_perp_axis, cur_end = new_rot_axis, new_rot_perp_axis, cur_end + length * new_rot_axis
-
-        return cur_end
